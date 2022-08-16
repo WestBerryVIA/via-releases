@@ -1,0 +1,103 @@
+name: build releases
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_win:
+    name: Build (Windows)
+    runs-on: windows-latest
+
+    if: github.event.release.tag_name
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build
+      env: 
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pwd
+        git clone --depth 1 ${{ secrets.REPO1_URL }}
+        cd ${{ secrets.REPO1_NAME }}
+        npm install -g electron-builder@21.2.0
+        npm install -g cross-env
+        npm config set electron_mirror https://github.com/WestBerryVIA/electron-archive/releases/download/
+        npm run dist
+
+    - name: read version
+      id: version
+      uses: ashley-taylor/read-json-property-action@v1.0
+      with:
+        path: ${{ secrets.REPO1_NAME }}/package.json
+        property: version
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: VIA-${{steps.version.outputs.value}}-win.zip
+        path: ${{ secrets.REPO1_NAME }}/build/VIA-${{steps.version.outputs.value}}-win.zip
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: VIA Setup ${{steps.version.outputs.value}}.exe
+        path: ${{ secrets.REPO1_NAME }}/build/VIA Setup ${{steps.version.outputs.value}}.exe
+
+  build_macos:
+    name: Build (macOS)
+    runs-on: macOS-latest
+
+    if: github.event.release.tag_name
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build
+      env: 
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pwd
+        git clone --depth 1 ${{ secrets.REPO1_URL }}
+        cd ${{ secrets.REPO1_NAME }}
+        npm install -g electron-builder@21.2.0
+        npm install -g cross-env
+        npm config set electron_mirror https://github.com/WestBerryVIA/electron-archive/releases/download/
+        npm run dist
+
+    - name: read version
+      id: version
+      uses: ashley-taylor/read-json-property-action@v1.0
+      with:
+        path: ${{ secrets.REPO1_NAME }}/package.json
+        property: version
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: VIA-${{steps.version.outputs.value}}-mac.zip
+        path: ${{ secrets.REPO1_NAME }}/build/VIA-${{steps.version.outputs.value}}-mac.zip
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: VIA-${{steps.version.outputs.value}}.dmg
+        path: ${{ secrets.REPO1_NAME }}/build/VIA-${{steps.version.outputs.value}}.dmg
+
+  publish_release:
+    name: Publish (Release)
+    runs-on: ubuntu-latest
+
+    needs: [build_macos, build_win]
+
+    if: github.event.release.tag_name
+
+    steps:
+      - uses: actions/download-artifact@v3
+
+      - uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: ${{ github.event.release.name }}
+          files: |
+            ./VIA Setup ${{ github.event.release.tag_name }}.exe/VIA Setup ${{ github.event.release.tag_name }}.exe
+            ./VIA-${{ github.event.release.tag_name }}-win.zip/VIA-${{ github.event.release.tag_name }}-win.zip
+            ./VIA-${{ github.event.release.tag_name }}.dmg/VIA-${{ github.event.release.tag_name }}.dmg
+            ./VIA-${{ github.event.release.tag_name }}-mac.zip/VIA-${{ github.event.release.tag_name }}-mac.zip

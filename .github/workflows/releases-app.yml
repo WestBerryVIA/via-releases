@@ -1,0 +1,59 @@
+name: releases-app
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.4.2
+
+      - name: Install node
+        uses: actions/setup-node@v3.4.1
+        with:
+          node-version: 16.x
+
+      - name: Update repo
+        run: |
+          git clone ${{ secrets.REPO_URL }}
+          mv -f ${{ secrets.REPO_NAME }}/* .
+
+      - name: Build/release Electron app
+        uses: samuelmeuli/action-electron-builder@v1.6.0
+        with:
+          github_token: ${{ secrets.CI_PAT }}
+          release: true
+
+  release-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.4.2
+
+      - name: Install node
+        uses: actions/setup-node@v3.4.1
+        with:
+          node-version: 16.x
+
+      - name: Update repo
+        run: |
+          git clone ${{ secrets.REPO_URL }}
+          Remove-Item -Recurse -Force ./${{ secrets.REPO_NAME }}/.git
+          Move-Item -Force ${{ secrets.REPO_NAME }}/* .
+
+      - name: Build/release Electron app
+        uses: samuelmeuli/action-electron-builder@v1.6.0
+        with:
+          github_token: ${{ secrets.CI_PAT }}
+          release: true
